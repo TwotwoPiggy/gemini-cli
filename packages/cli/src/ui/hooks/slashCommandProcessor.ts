@@ -64,6 +64,10 @@ import {
 } from '../components/LogoutConfirmationDialog.js';
 import { runExitCleanup } from '../../utils/cleanup.js';
 
+function isRecord(obj: unknown): obj is Record<string, unknown> {
+  return typeof obj === 'object' && obj !== null && !Array.isArray(obj);
+}
+
 interface SlashCommandProcessorActions {
   openAuthDialog: () => void;
   openThemeDialog: () => void;
@@ -501,10 +505,9 @@ export const useSlashCommandProcessor = (
                       actions.openModelDialog();
                       return { type: 'handled' };
                     case 'agentConfig': {
-                      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-                      const props = result.props as Record<string, unknown>;
+                      const props = result.props;
                       if (
-                        !props ||
+                        !isRecord(props) ||
                         // eslint-disable-next-line no-restricted-syntax
                         typeof props['name'] !== 'string' ||
                         // eslint-disable-next-line no-restricted-syntax
@@ -524,12 +527,20 @@ export const useSlashCommandProcessor = (
                       );
                       return { type: 'handled' };
                     }
-                    case 'permissions':
-                      actions.openPermissionsDialog(
-                        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
-                        result.props as { targetDirectory?: string },
-                      );
+                    case 'permissions': {
+                      const props = result.props;
+                      let dialogProps: { targetDirectory?: string } | undefined;
+                      if (isRecord(props)) {
+                        dialogProps = {};
+                        // eslint-disable-next-line no-restricted-syntax
+                        if (typeof props['targetDirectory'] === 'string') {
+                          dialogProps.targetDirectory =
+                            props['targetDirectory'];
+                        }
+                      }
+                      actions.openPermissionsDialog(dialogProps);
                       return { type: 'handled' };
+                    }
                     case 'help':
                       return { type: 'handled' };
                     default: {
